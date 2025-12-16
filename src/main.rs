@@ -7,8 +7,8 @@ use axum::{
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, IpAddr};
-use std::fs;
-use tower_http::services::ServeDir;
+
+
 
 #[derive(Debug, Deserialize, Serialize)]
 struct VideoForm {
@@ -57,19 +57,26 @@ async fn main() {
     let args = Args::parse();
 
     // Create static directory if it doesn't exist
-    fs::create_dir_all("static").unwrap_or_default();
+
 
     let app = Router::new()
         .route("/", get(home_page))
-        .route("/play", post(play_video_post))
-        .nest_service("/static", ServeDir::new("static"));
+        .route("/play", post(play_video_post));
+
 
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
 
     // Print all available IP addresses
     print_server_addresses(args.port);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("Failed to bind to port {}: {}", args.port, e);
+            eprintln!("Try a different port with --port <number>");
+            std::process::exit(1);
+        }
+    };
 
     println!("\n🚀 Server is running!");
     println!("📱 Share any of the above URLs with devices on your network\n");
@@ -156,18 +163,18 @@ fn print_server_addresses(port: u16) {
 
 async fn home_page() -> Html<String> {
     // read with file
-    if let Ok(content) = fs::read_to_string("static/player.html"){
-        return Html(content);
-    }else {
-        return Html(r#"<p>server error, can't find html content/file</p>"#.to_string());
-    }
+    let content = include_str!("../static/player.html");
+    Html(content.to_string())
+
+
 }
+ 
 
 async fn play_video_post(Form(video_form): Form<VideoForm>) -> Html<String> {
     let video_url = video_form.video_url;
 
-    let content = fs::read_to_string("static/video.html").unwrap_or_else(|_| r#"<p>server error, can't find html content/file</p>"#.to_string());
-    let html = content + &format!("<script>document.getElementById('videoPlayer').src = '{}';</script>", video_url);
+    let content = include_str!("../static/video.html");
+    let html = content.replace("<video id=\"videoPlayer\" preload=\"metadata\"></video>", &format!("<video id=\"videoPlayer\" src=\"{}\" preload=\"metadata\"></video>", video_url));
 
     Html(html)
 }
