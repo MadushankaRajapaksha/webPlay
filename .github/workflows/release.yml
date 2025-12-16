@@ -39,6 +39,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release Asset
-        run: gh release upload ${{ github.ref_name }} ${{ matrix.binary_path }}#${{ matrix.asset_name }}
+        run: gh release upload ${{ github.ref_name }} ${{ matrix.binary_path }}#${{ matrix.asset_name }} --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
